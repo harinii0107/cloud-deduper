@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 10
+    Environment:
+      Variables:
+        TABLE_NAME: RecordsTable
+
+Resources:
+  DeduperApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Events:
+        Ingest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref DeduperApi
+            Path: /ingest
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+
+  RecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: content_hash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: content_hash
+          KeyType: HASH
